@@ -17,27 +17,36 @@ def save_tasks(tasks):
     with open(DATA_FILE,'w') as f:
         json.dump(tasks, f, indent=2)
 
-def add_task(text):
+def add_task(text,tags):
     tasks = load_tasks()
-    tasks.append({'text':text,'done':False})
+    task = {
+            "id": len(tasks) + 1,
+            "text": text,
+            "done": False,
+            "tags": tags
+            }
+    tasks.append(task)
     save_tasks(tasks)
-    print(f"[V] Added task: {text}")
+    print(f"[V] Added task: {text}, with tags: {tags}")
 
-def list_tasks():
+def list_tasks(filter_tag=None):
     tasks = load_tasks()
-    if not tasks:
-        print("No tasks for now!")
-        return
-    for i, task in enumerate(tasks, 1):
-        status = '✓' if task['done'] else ' '
-        print(f"{i:2}, [{status}] {task['text']}")
+    filtered = tasks
+    if filter_tag:
+        filtered = [t for t in tasks if filter_tag in t.get("tags", [])]
+    for task in filtered:
+        status = "✔" if task["done"] else "✘"
+        tags_str = ", ".join(task.get("tags", []))
+        print(f"{task['id']}.[{status}] {task["text"]} (Tags: {tags_str})")
+
+
 
 def mark_done(index):
     tasks = load_tasks()
     try:
-        tasks[index - 1]['done'] = True
+        tasks[index - 1]["done"] = True
         save_tasks(tasks)
-        print(f"[✓] Done: {tasks[index-1]['text']}")
+        print(f"[✓] Done: {tasks[index-1]["text"]}")
     except IndexError:
         print("No entries for this task")
 
@@ -46,7 +55,7 @@ def remove_task(index):
     try:
         removed = tasks.pop(index - 1)
         save_tasks(tasks)
-        print(f"[-] Removed: {removed['text']}")
+        print(f"[-] Removed: {removed["text"]}")
     except IndexError:
         print("No entries for this task")
 
@@ -54,10 +63,12 @@ def main():
     parser = argparse.ArgumentParser(description="TODO in terminal")
     subparsers = parser.add_subparsers(dest='command')
 
-    subparsers.add_parser('list', help='Show task list')
-
     add = subparsers.add_parser('add', help='Add task')
-    add.add_argument('text',nargs='+')
+    add.add_argument('text',help='Task name')
+    add.add_argument('--tag', nargs='*', default=[], help='Task tags')
+
+    list_parser = subparsers.add_parser('list', help='Show task list')
+    list_parser.add_argument('--tag', help = "Filter by tag")
 
     done = subparsers.add_parser('done',help="Mark as done")
     done.add_argument('id',type=int)
@@ -68,9 +79,9 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'add':
-        add_task(' '.join(args.text))
+        add_task(args.text, args.tag)
     elif args.command == 'list':
-        list_tasks()
+        list_tasks(args.tag)
     elif args.command == 'done':
         mark_done(args.id)
     elif args.command == 'rm':
